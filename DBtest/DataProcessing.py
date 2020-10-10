@@ -1,15 +1,12 @@
-import io
 import datetime
-import numpy as np
-import pandas as pd
-import csv
-import matplotlib
+
 import matplotlib.pyplot as plt
+import pandas as pd
 import pyodbc
 
 sqlStr = "select top 1000 t1.时间, 铁水红外温度, 铁水流速, 瞬时出铁量 \
-          from (select 时间, 铁水红外温度 from dbo.IronTemp where 铁口号 = 1 and 时间 > '2020-08-01') as t1 \
-          left join (select 时间, 铁水流速, 瞬时出铁量 from dbo.IronVelocity where 铁口号 = 1 and 时间 > '2020-08-01') as t2 \
+          from (select 时间, 铁水红外温度 from IronTemp where 铁口号 = 1 and 时间 > '2020-08-01') as t1 \
+          left join (select 时间, 铁水流速, 瞬时出铁量 from IronVelocity where 铁口号 = 1 and 时间 > '2020-08-01') as t2 \
           on datediff(second ,t1.时间,t2.时间) < 4 and datediff(second ,t1.时间,t2.时间) > -4"
 
 
@@ -44,6 +41,12 @@ def is_continuous(t1, t2):
     return (datetime2 - datetime1).seconds > 3600
 
 
+def time_difference(t1, t2):
+    datetime1 = datetime.datetime.strptime(t1[0:19], '%Y-%m-%d %H:%M:%S')
+    datetime2 = datetime.datetime.strptime(t2[0:19], '%Y-%m-%d %H:%M:%S')
+    return (datetime2 - datetime1).seconds / 60
+
+
 if __name__ == '__main__':
     data = csv_reading("testData.csv")
     temp = []
@@ -52,9 +55,11 @@ if __name__ == '__main__':
     x = []
     index = 0
     group_count = 1
+    lastTime = data.iloc[0, 0]
     for i in range(data.shape[0]):
         if i != 0 and is_continuous(data.iloc[i - 1, 0], data.iloc[i, 0]):
-            print("这是第", group_count, "组数据，共有", index, "个元素")
+            timeDif = time_difference(lastTime, data.iloc[i - 1, 0])
+            print("这是第", group_count, "组数据，共有", index, "个元素，本次流程耗时", timeDif, "分钟")
             plt.xlabel('Time', color='blue')  # 坐标轴标题
             plt.ylabel('Value', color='blue')
             plt.plot(x, temp, label='temp', color='r', linewidth=3.0)  # 输入温度数据
@@ -63,6 +68,7 @@ if __name__ == '__main__':
             plt.grid(alpha=0.3, linestyle=':')  # 画网格
             plt.legend(loc='best')  # 画图例
             plt.show()
+            lastTime = data.iloc[i, 0]
             temp = []
             velocity = []
             weight = []
