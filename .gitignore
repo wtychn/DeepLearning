@@ -9,3 +9,5 @@ out
 gen
 dataSources/
 *.npy
+*.csv
+NeuralNetworks/mnist/
