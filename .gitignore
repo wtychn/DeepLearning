@@ -10,4 +10,5 @@ gen
 dataSources/
 *.npy
 *.csv
+*.jpg
 NeuralNetworks/mnist/
