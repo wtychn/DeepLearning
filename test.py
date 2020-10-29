@@ -3,6 +3,7 @@ import torchvision.transforms as transforms
 from PIL import Image
 import torch.utils.data as Data
 import torch
+import numpy as np
 
 def pil_loader(path):  # 一般采用pil_loader函数。
     with open(path, 'rb') as f:
@@ -16,4 +17,8 @@ def pil_loader(path):  # 一般采用pil_loader函数。
 #     text_x = imgs
 #     text_y = targets
 # text_y = text_y.numpy()
-use_gpu = torch.cuda.is_available()
+a = np.asarray([])
+print(a)
+b = [1, 2, 3]
+a = np.append(a, np.asarray(b))
+print(a)
