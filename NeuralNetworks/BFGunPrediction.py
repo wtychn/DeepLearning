@@ -1,10 +1,6 @@
+import numpy as np
 import torch
 from torch import nn
-import torchvision.datasets as dsets
-import torchvision.transforms as transforms
-import matplotlib.pyplot as plt
-import pandas as pd
-import numpy as np
 
 # torch.manual_seed(1)    # reproducible
 
@@ -21,8 +17,8 @@ data_y = np.load("../DBtest/DataProcess/data_c.npy")
 
 train_x = data_x[:900]
 train_y = data_y[:900]
-test_x = torch.tensor(torch.from_numpy(data_x[900:]), dtype=torch.float32)
-test_y = data_y[900:]
+test_x = torch.from_numpy(data_x[900:]).type(torch.FloatTensor).cuda()
+test_y = torch.tensor(data_y[900:]).cuda()
 
 
 class RNN(nn.Module):
@@ -51,7 +47,8 @@ class RNN(nn.Module):
 
 
 rnn = RNN()
-print(rnn)
+rnn.cuda()
+# print(rnn)
 
 optimizer = torch.optim.Adam(rnn.parameters(), lr=LR)  # optimize all cnn parameters
 loss_func = nn.CrossEntropyLoss()  # the target label is not one-hotted
@@ -60,10 +57,9 @@ loss_func = nn.CrossEntropyLoss()  # the target label is not one-hotted
 for epoch in range(EPOCH):
     for step in range(train_x.shape[0]):
         s_x = train_x[step]
-        s_y = torch.tensor([train_y[step]], dtype=torch.long)
-        b_x = torch.from_numpy(s_x).view(-1, 100, 2)  # reshape x to (batch, time_step, input_size)
+        s_y = torch.tensor([train_y[step]], dtype=torch.long).cuda()
+        b_x = torch.from_numpy(s_x[np.newaxis, :]).type(torch.FloatTensor).cuda()  # reshape x to (batch, time_step, input_size)
 
-        b_x = torch.tensor(b_x, dtype=torch.float32)
         output = rnn(b_x)  # rnn output
         loss = loss_func(output, s_y)  # cross entropy loss
         optimizer.zero_grad()  # clear gradients for this training step
@@ -72,12 +68,12 @@ for epoch in range(EPOCH):
 
         if step % 50 == 0:
             test_output = rnn(test_x)  # (samples, time_step, input_size)
-            pred_y = torch.max(test_output, 1)[1].data.numpy()
-            accuracy = float((pred_y == test_y).astype(int).sum()) / float(test_y.size)
-            print('Epoch: ', epoch, '| train loss: %.4f' % loss.data.numpy(), '| test accuracy: %.2f' % accuracy)
+            pred_y = torch.max(test_output, 1)[1].cuda().data
+            accuracy = torch.sum(pred_y == test_y).type(torch.FloatTensor) / test_y.size(0)
+            print('Epoch: ', epoch, '| train loss: %.4f' % loss.data.cpu().numpy(), '| test accuracy: %.2f' % accuracy)
 
 # print 10 predictions from test data
 test_output = rnn(test_x[:10].view(-1, 100, 2))
-pred_y = torch.max(test_output, 1)[1].data.numpy()
+pred_y = torch.max(test_output, 1)[1].cuda().data
 print(pred_y, 'prediction number')
 print(test_y[:10], 'real number')

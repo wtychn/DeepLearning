@@ -17,8 +17,7 @@ def pil_loader(path):  # 一般采用pil_loader函数。
 #     text_x = imgs
 #     text_y = targets
 # text_y = text_y.numpy()
-a = np.asarray([])
-print(a)
-b = [1, 2, 3]
-a = np.append(a, np.asarray(b))
-print(a)
+a = np.array([[1, 2, 3], [4, 5, 6]])
+print(a.shape)
+b = torch.from_numpy(a[np.newaxis, :])
+print(b.shape)

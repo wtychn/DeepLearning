@@ -1,8 +1,6 @@
 # library
 # standard library
 
-import numpy as np
-import matplotlib.pyplot as plt
 # third-party library
 import torch
 import torch.nn as nn
@@ -10,6 +8,7 @@ import torch.utils.data as Data
 import torchvision.datasets as dset
 import torchvision.transforms as transforms
 from PIL import Image
+import os
 
 # torch.manual_seed(1)    # reproducible
 
@@ -86,7 +85,8 @@ class CNN(nn.Module):
         return output  # return x for visualization
 
 
-if TRAIN:
+
+if TRAIN:  # 如果TRAIN为真则开始训练
     cnn = CNN()
     cnn.cuda()
     # print(cnn)  # net architecture
@@ -94,31 +94,6 @@ if TRAIN:
     optimizer = torch.optim.Adam(cnn.parameters(), lr=LR)  # optimize all cnn parameters
     loss_func = nn.CrossEntropyLoss()  # the target label is not one-hotted
 
-    # following function (plot_with_labels) is for visualization, can be ignored if not interested
-    # from matplotlib import cm
-    #
-    # try:
-    #     from sklearn.manifold import TSNE
-    #
-    #     HAS_SK = True
-    # except:
-    #     HAS_SK = False
-    #     print('Please install sklearn for layer visualization')
-    #
-    #
-    # def plot_with_labels(lowDWeights, labels):
-    #     plt.cla()
-    #     X, Y = lowDWeights[:, 0], lowDWeights[:, 1]
-    #     for x, y, s in zip(X, Y, labels):
-    #         c = cm.rainbow(int(255 * s / 9));
-    #         plt.text(x, y, s, backgroundcolor=c, fontsize=9)
-    #     plt.xlim(X.min(), X.max());
-    #     plt.ylim(Y.min(), Y.max());
-    #     plt.title('Visualize last layer');
-    #     plt.show();
-    #     plt.pause(0.01)
-
-    # plt.ion()
     # training and testing
     for epoch in range(EPOCH):
         for step, (imgs, targets) in enumerate(train_loader):  # gives batch data, normalize x when iterate train_loader
@@ -137,14 +112,6 @@ if TRAIN:
                 accuracy = torch.sum(pred_y == test_y).type(torch.FloatTensor) / test_y.size(0)
                 print('Epoch: ', epoch, '| train loss: %.4f' % loss.data.cpu().numpy(),
                       '| test accuracy: %.2f' % accuracy)
-                # if HAS_SK:
-                #     # Visualization of trained flatten layer (T-SNE)
-                #     tsne = TSNE(perplexity=30, n_components=2, init='pca', n_iter=5000)
-                #     plot_only = 500
-                #     low_dim_embs = tsne.fit_transform(last_layer.data.numpy()[:plot_only, :])
-                #     labels = test_y.numpy()[:plot_only]
-                #     plot_with_labels(low_dim_embs, labels)
-    # plt.ioff()
 
     # print 10 predictions from test data
     test_output = cnn(test_x[:10])
@@ -153,18 +120,22 @@ if TRAIN:
     print(test_y[:10], 'real number')
 
     torch.save(cnn.state_dict(), 'cnn_params.pkl')
-else:
+
+elif os.path.isfile('cnn_params.pkl'):  # cnn参数文件存在则直接测试
     cnn = CNN()
     cnn.load_state_dict(torch.load('cnn_params.pkl'))
     cnn.cuda()
 
     total_accuracy = 0
     for i in range(0, len(test_data.samples) - 20, 20):
-        test_x = imgs_x[i:i+20].cuda()
-        test_y = targets_y[i:i+20].cuda()
+        test_x = imgs_x[i:i + 20].cuda()
+        test_y = targets_y[i:i + 20].cuda()
         test_output = cnn(test_x)
         pred_y = torch.max(test_output, 1)[1].cuda().data
         accuracy = torch.sum(pred_y == test_y).type(torch.FloatTensor) / test_y.size(0)
         total_accuracy += accuracy
     total_accuracy /= len(test_data.samples) / 20
     print('test accuracy: %.2f' % total_accuracy)
+
+else:
+    print('CNN need to be train!')

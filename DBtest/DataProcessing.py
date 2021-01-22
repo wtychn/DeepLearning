@@ -78,6 +78,7 @@ if __name__ == '__main__':
 
         # 温度信息减小数值，将低位数值作为增益保留原来的波动程度
         temp.append(data.iloc[i, 1] / 400 + data.iloc[i, 1] % 100 / 8)
+        # temp.append(data.iloc[i, 1])
         velocity.append(data.iloc[i, 2])
         weight.append(data.iloc[i, 3])
         x.append(index)
