@@ -65,7 +65,7 @@ def deHaze(m, r=81, eps=0.001, w=0.95, maxV1=0.80, bGamma=False):
 
 
 if __name__ == '__main__':
-    m = deHaze(cv2.imread('test.jpg') / 255.0) * 255
+    m = deHaze(cv2.imread('train.jpg') / 255.0) * 255
     cv2.imshow('defog', m)
     cv2.waitKey(0)
 

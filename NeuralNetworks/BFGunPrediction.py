@@ -70,9 +70,9 @@ for epoch in range(EPOCH):
             test_output = rnn(test_x)  # (samples, time_step, input_size)
             pred_y = torch.max(test_output, 1)[1].cuda().data
             accuracy = torch.sum(pred_y == test_y).type(torch.FloatTensor) / test_y.size(0)
-            print('Epoch: ', epoch, '| train loss: %.4f' % loss.data.cpu().numpy(), '| test accuracy: %.2f' % accuracy)
+            print('Epoch: ', epoch, '| train loss: %.4f' % loss.data.cpu().numpy(), '| train accuracy: %.2f' % accuracy)
 
-# print 10 predictions from test data
+# print 10 predictions from train data
 test_output = rnn(test_x[:10].view(-1, 100, 2))
 pred_y = torch.max(test_output, 1)[1].cuda().data
 print(pred_y, 'prediction number')

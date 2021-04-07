@@ -4,7 +4,7 @@ import sys
 import pandas as pd
 import numpy as np
 
-testdata = pd.read_csv('../dataSources/test.csv', header=None, encoding='big5')
+testdata = pd.read_csv('../dataSources/train.csv', header=None, encoding='big5')
 test_data = testdata.iloc[:, 2:]
 test_data[test_data == 'NR'] = 0
 test_data = test_data.to_numpy()
