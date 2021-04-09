@@ -4,6 +4,7 @@ import cv2
 import numpy as np
 from PIL import Image
 from tqdm import tqdm
+import matplotlib.pyplot as plt
 
 
 class ImgTreatment:
@@ -25,64 +26,45 @@ class ImgTreatment:
         # median = specular
         return median
 
-    def zmMinFilterGray(self, src, r=5):
-        """最小值滤波，r是滤波器半径"""
-        '''if r <= 0:
-            return src
-        h, w = src.shape[:2]
-        I = src
-        res = np.minimum(I  , I[[0]+range(h-1)  , :])
-        res = np.minimum(res, I[range(1,h)+[h-1], :])
-        I = res
-        res = np.minimum(I  , I[:, [0]+range(w-1)])
-        res = np.minimum(res, I[:, range(1,w)+[w-1]])
-        return zmMinFilterGray(res, r-1)'''
-        return cv2.erode(src, np.ones((2 * r + 1, 2 * r + 1)))  # 使用opencv的erode函数更高效
+    def ComputeMinLevel(self, hist, pnum):
+        index = np.add.accumulate(hist)
+        return np.argwhere(index > pnum * 8.3 * 0.01)[0][0]
 
-    def guidedfilter(self, I, p, r, eps):
-        """引导滤波，直接参考网上的matlab代码"""
-        m_I = cv2.boxFilter(I, -1, (r, r))
-        m_p = cv2.boxFilter(p, -1, (r, r))
-        m_Ip = cv2.boxFilter(I * p, -1, (r, r))
-        cov_Ip = m_Ip - m_I * m_p
+    def ComputeMaxLevel(self, hist, pnum):
+        hist_0 = hist[::-1]
+        Iter_sum = np.add.accumulate(hist_0)
+        index = np.argwhere(Iter_sum > (pnum * 2.2 * 0.01))[0][0]
+        return 255 - index
 
-        m_II = cv2.boxFilter(I * I, -1, (r, r))
-        var_I = m_II - m_I * m_I
+    def LinearMap(self, minlevel, maxlevel):
+        if (minlevel >= maxlevel):
+            return []
+        else:
+            index = np.array(list(range(256)))
+            screenNum = np.where(index < minlevel, 0, index)
+            screenNum = np.where(screenNum > maxlevel, 255, screenNum)
+            for i in range(len(screenNum)):
+                if screenNum[i] > 0 and screenNum[i] < 255:
+                    screenNum[i] = (i - minlevel) / (maxlevel - minlevel) * 255
+            return screenNum
 
-        a = cov_Ip / (var_I + eps)
-        b = m_p - a * m_I
-
-        m_a = cv2.boxFilter(a, -1, (r, r))
-        m_b = cv2.boxFilter(b, -1, (r, r))
-        return m_a * I + m_b
-
-    def getV1(self, m, r, eps, w, maxV1):  # 输入rgb图像，值范围[0,1]
-        """计算大气遮罩图像V1和光照值A, V1 = 1-t/A"""
-        V1 = np.min(m, 2)  # 得到暗通道图像
-        V1 = self.guidedfilter(V1, self.zmMinFilterGray(V1, 7), r, eps)  # 使用引导滤波优化
-        bins = 2000
-        ht = np.histogram(V1, bins)  # 计算大气光照A
-        d = np.cumsum(ht[0]) / float(V1.size)
-        for lmax in range(bins - 1, 0, -1):
-            if d[lmax] <= 0.999:
-                break
-        A = np.mean(m, 2)[V1 >= ht[1][lmax]].max()
-
-        V1 = np.minimum(V1 * w, maxV1)  # 对值范围进行限制
-
-        return V1, A
-
-    def deHaze(self, src, r=81, eps=0.001, w=0.95, maxV1=0.80, bGamma=False):
-        Y = np.zeros(src.shape)
-        V1, A = self.getV1(src, r, eps, w, maxV1)  # 得到遮罩图像和大气光照
-        for k in range(3):
-            Y[:, :, k] = (src[:, :, k] - V1) / (1 - V1 / A)  # 颜色校正
-        Y = np.clip(Y, 0, 1)
-        if bGamma:
-            Y = Y ** (np.log(0.5) / np.log(Y.mean()))  # gamma校正,默认不进行该操作
-        return Y
+    def CreateNewImg(self, img):
+        h, w, d = img.shape
+        newimg = np.zeros([h, w, d])
+        for i in range(d):
+            imghist = np.bincount(img[:, :, i].reshape(1, -1)[0])
+            minlevel = self.ComputeMinLevel(imghist, h * w)
+            maxlevel = self.ComputeMaxLevel(imghist, h * w)
+            screenNum = self.LinearMap(minlevel, maxlevel)
+            if (screenNum.size == 0):
+                continue
+            for j in range(h):
+                newimg[j, :, i] = screenNum[img[j, :, i]]
+        return newimg
 
     def resize(self, image):
+        image = np.array(image, dtype='uint8')
+        image = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
         width, height = image.size
         new_image_length = max(width, height)  # 获取新图边长
         new_image = Image.new("RGB", (new_image_length, new_image_length), (0, 0, 0))  # 生成一张正方形底图
@@ -92,28 +74,56 @@ class ImgTreatment:
         resize = new_image.resize((224, 224), Image.ANTIALIAS)
         return cv2.cvtColor(np.asarray(resize), cv2.COLOR_RGB2BGR)
 
-    def treatment(self, origin_dir, target_dir, isShow=False):
+    def treatment(self, origin_dir, target_dir, isRepair=True, isDehaze=True, isResize=True, isShow=False, isSave=False):
         files = os.listdir(origin_dir)
         pbar = tqdm(total=len(files))
         for filename in files:
             all_path = os.path.join(origin_dir, filename)
             target_path = os.path.join(target_dir, filename)
             img = cv2.imread(all_path)  # 图片读取
+            repair = img
+            m = img
+            resize = img
             # 图像修复
-            repair = self.imgRepair(img)
-            # 图像去雾(暗通道去雾算法 效果一般)
-            m = self.deHaze(repair / 255.0) * 255
-            m = np.array(m, dtype='uint8')
-            img = Image.fromarray(cv2.cvtColor(m, cv2.COLOR_BGR2RGB))
-            resize = self.resize(img)  # 改变图片尺寸
-            cv2.imwrite(target_path, resize)
+            if(isRepair):
+                repair = self.imgRepair(img)
+            # 图像去雾(自动色阶去雾算法)
+            if(isDehaze):
+                m = self.CreateNewImg(repair)
+            # 改变图片尺寸
+            if(isResize):
+                resize = self.resize(m)
 
-            # cv2.imwrite(target_path, repair)
-            pbar.update(1)
+            if(isSave):
+                cv2.imwrite(target_path, resize)
+
             if(isShow):
-                cv2.imshow('origin', img)
-                cv2.imshow('treated', repair)
-                cv2.waitKey(0)
+                plt.subplot(2, 2, 1)
+                plt.title('src')
+                plt.imshow(img[:, :, ::-1])
+                plt.xticks([])
+                plt.yticks([])
+
+                plt.subplot(2, 2, 2)
+                plt.title('repaired')
+                plt.imshow(repair[:, :, ::-1])
+                plt.xticks([])
+                plt.yticks([])
+
+                plt.subplot(2, 2, 3)
+                plt.title('dehazed')
+                plt.imshow(m[:, :, ::-1] / 255)
+                plt.xticks([])
+                plt.yticks([])
+
+                plt.subplot(2, 2, 4)
+                plt.title('resized')
+                plt.imshow(resize[:, :, ::-1])
+                plt.xticks([])
+                plt.yticks([])
+
+                plt.show()
+            pbar.update(1)
 
         # cv2.namedWindow("img", 0)
         # cv2.resizeWindow("img", int(width / 2), int(hight / 2))
