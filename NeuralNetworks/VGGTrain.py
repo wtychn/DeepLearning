@@ -79,6 +79,7 @@ if TRAIN:
     for epoch in range(Epoch):
         print('epoch {}'.format(epoch + 1))
         # training-----------------------------
+        model.train()
         train_loss = 0.
         train_acc = 0.
         leng = len(train_dataloader)

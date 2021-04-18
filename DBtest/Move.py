@@ -29,5 +29,5 @@ class Move:
         sample = random.sample(pathDir, picknumber)  # 随机选取picknumber数量的样本图片
         print(sample)
         for name in sample:
-            shutil.move(fileDir + name, tarDir + name)
+            shutil.copy(fileDir + name, tarDir + name)
         return
