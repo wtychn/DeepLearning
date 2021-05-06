@@ -153,5 +153,5 @@ def se_resnext_152(**kwargs):
     return model
 
 
-model = se_resnext_50().cuda()
-summary(model, (3, 224, 224))
+# model = se_resnext_50().cuda()
+# summary(model, (3, 224, 224))
