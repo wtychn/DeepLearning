@@ -40,6 +40,18 @@ else:
     VGGAccuracy_list = []
 # VGGAccuracy_list = VGGAccuracy_list[80:100]
 
+ResNeXtcheckPointPath = '../DBtest/checkPoint/ResNeXt_checkPoint/'
+
+if os.path.exists(ResNeXtcheckPointPath + 'loss.npy'):
+    ResNeXtLoss_list = np.load(ResNeXtcheckPointPath + 'loss.npy', allow_pickle=True)
+else:
+    ResNeXtLoss_list = []
+
+if os.path.exists(ResNeXtcheckPointPath + 'accuracy.npy'):
+    ResNeXtAccuracy_list = np.load(ResNeXtcheckPointPath + 'accuracy.npy', allow_pickle=True)
+else:
+    ResNeXtAccuracy_list = []
+
 x1 = range(0, len(RNAccuracy_list))
 x2 = range(0, len(VGGAccuracy_list))
 # 用3次多项式拟合
@@ -67,10 +79,19 @@ f6 = np.polyfit(x2, VGGAccuracy_list, 4)
 p6 = np.poly1d(f6)
 fitVGGAccuracy = p6(x2)
 
+f7 = np.polyfit(x1, RNLoss_list, 4)
+p7 = np.poly1d(f7)
+fitResNeXtLoss_list = p7(x1)  # 拟合y值
+
+f8 = np.polyfit(x1, ResNeXtAccuracy_list, 4)
+p8 = np.poly1d(f8)
+fitResNeXtAccuracy_list = p8(x1)
+
 # plt.subplot(2, 1, 1)
 # plt.plot(x1, fitVGGAccuracy_list, '.-', color='yellowgreen', label='VGG')
 plt.plot(x1, fitRNAccuracy_list, '-', color='lightsteelblue', label='ResNet')
-plt.plot(x1, fitSRXAccuracy_list, '-', color='royalblue', label='SE-ResNeXt')
+plt.plot(x1, fitResNeXtAccuracy_list, '-', color='royalblue', label='ResNeXt')
+plt.plot(x1, fitSRXAccuracy_list, '-', color='blue', label='SE-ResNeXt')
 plt.title('Test accuracy vs. epoches')
 plt.ylabel('Test accuracy')
 plt.legend()
