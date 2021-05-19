@@ -38,7 +38,8 @@ if os.path.exists(VGGcheckPointPath + 'accuracy.npy'):
     VGGAccuracy_list = np.load(VGGcheckPointPath + 'accuracy.npy', allow_pickle=True)
 else:
     VGGAccuracy_list = []
-# VGGAccuracy_list = VGGAccuracy_list[80:100]
+VGGAccuracy_list = VGGAccuracy_list[:100]
+VGGLoss_list = VGGLoss_list[:100]
 
 ResNeXtcheckPointPath = '../DBtest/checkPoint/ResNeXt_checkPoint/'
 
@@ -47,13 +48,15 @@ if os.path.exists(ResNeXtcheckPointPath + 'loss.npy'):
 else:
     ResNeXtLoss_list = []
 
+# ResNeXtLoss_list = ResNeXtLoss_list * 0.5
+
 if os.path.exists(ResNeXtcheckPointPath + 'accuracy.npy'):
     ResNeXtAccuracy_list = np.load(ResNeXtcheckPointPath + 'accuracy.npy', allow_pickle=True)
 else:
     ResNeXtAccuracy_list = []
 
-x1 = range(0, len(RNAccuracy_list))
-x2 = range(0, len(VGGAccuracy_list))
+x1 = np.arange(0, len(RNAccuracy_list))
+x2 = np.arange(0, len(VGGAccuracy_list))
 # 用3次多项式拟合
 f1 = np.polyfit(x1, SRXLoss_list, 4)
 p1 = np.poly1d(f1)
@@ -79,7 +82,7 @@ f6 = np.polyfit(x2, VGGAccuracy_list, 4)
 p6 = np.poly1d(f6)
 fitVGGAccuracy = p6(x2)
 
-f7 = np.polyfit(x1, RNLoss_list, 4)
+f7 = np.polyfit(x1, ResNeXtLoss_list, 4)
 p7 = np.poly1d(f7)
 fitResNeXtLoss_list = p7(x1)  # 拟合y值
 
@@ -87,19 +90,23 @@ f8 = np.polyfit(x1, ResNeXtAccuracy_list, 4)
 p8 = np.poly1d(f8)
 fitResNeXtAccuracy_list = p8(x1)
 
+
+# x1 = np.arange(1, len(RNAccuracy_list) + 1).astype(dtype=np.str)
+# x2 = np.arange(1, len(VGGAccuracy_list) + 1).astype(dtype=np.str)
 # plt.subplot(2, 1, 1)
-# plt.plot(x1, fitVGGAccuracy_list, '.-', color='yellowgreen', label='VGG')
-plt.plot(x1, fitRNAccuracy_list, '-', color='lightsteelblue', label='ResNet')
-plt.plot(x1, fitResNeXtAccuracy_list, '-', color='royalblue', label='ResNeXt')
-plt.plot(x1, fitSRXAccuracy_list, '-', color='blue', label='SE-ResNeXt')
-plt.title('Test accuracy vs. epoches')
-plt.ylabel('Test accuracy')
-plt.legend()
+# plt.plot(x1, VGGAccuracy_list, '-', color='yellowgreen', label='VGG')
+# plt.plot(x1, RNAccuracy_list, '-', color='lightsteelblue', label='ResNet')
+# plt.plot(x1, ResNeXtAccuracy_list, '-', color='royalblue', label='ResNeXt')
+# plt.plot(x1, SRXAccuracy_list, '-', color='blue', label='SE-ResNeXt')
+# plt.title('Test accuracy vs. epoches')
+# plt.ylabel('Test accuracy')
+# plt.legend()
 # plt.subplot(2, 1, 2)
-# plt.plot(x2, fitVGGLoss_list, '-', color='yellowgreen', label='VGG')
-# plt.plot(x1, fitRNLoss_list, '-', color='lightsteelblue', label='ResNet')
-# plt.plot(x1, fitSRXLoss_list, '-', color='royalblue', label='SE-ResNeXt')
-# plt.xlabel('Test loss vs. epoches')
-# plt.ylabel('Test loss')
+# plt.plot(x2, VGGLoss_list, '-', color='yellowgreen', label='VGG')
+# plt.plot(x1, RNLoss_list, '-', color='lightsteelblue', label='ResNet')
+# plt.plot(x1, ResNeXtLoss_list, '-', color='royalblue', label='ResNeXt')
+plt.plot(x1, SRXLoss_list, '-', color='blue', label='SE-ResNeXt')
+plt.title('Test loss vs. epoches')
+plt.ylabel('Test loss')
 plt.legend()
 plt.show()

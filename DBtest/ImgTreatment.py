@@ -74,7 +74,8 @@ class ImgTreatment:
         resize = new_image.resize((224, 224), Image.ANTIALIAS)
         return cv2.cvtColor(np.asarray(resize), cv2.COLOR_RGB2BGR)
 
-    def treatment(self, origin_dir, target_dir, isRepair=True, isDehaze=True, isResize=True, isShow=False, isSave=False):
+    def treatment(self, origin_dir, target_dir, isRepair=True, isDehaze=True, isResize=True, isShow=False,
+                  isSave=False):
         files = os.listdir(origin_dir)
         pbar = tqdm(total=len(files))
         for filename in files:
@@ -85,19 +86,19 @@ class ImgTreatment:
             m = img
             resize = img
             # 图像修复
-            if(isRepair):
+            if isRepair:
                 repair = self.imgRepair(img)
             # 图像去雾(自动色阶去雾算法)
-            if(isDehaze):
+            if isDehaze:
                 m = self.CreateNewImg(repair)
             # 改变图片尺寸
-            if(isResize):
+            if isResize:
                 resize = self.resize(m)
 
-            if(isSave):
+            if isSave:
                 cv2.imwrite(target_path, resize)
 
-            if(isShow):
+            if isShow:
                 plt.subplot(2, 2, 1)
                 plt.title('src')
                 plt.imshow(img[:, :, ::-1])

@@ -16,8 +16,9 @@ from SwinTransformers_config import get_config
 from models import build_model
 
 batch_size = 32
-learning_rate = 0.0002
+learning_rate = 0.0001
 Epoch = 20
+useEpoch = 0
 TRAIN = True
 dataPath = '../DBtest/img/'
 checkPointPath = '../DBtest/checkPoint/Swin_checkPoint/'
@@ -53,7 +54,6 @@ val_dir = dataPath + 'val'
 val_datasets = datasets.ImageFolder(val_dir, transform=val_transforms)
 val_dataloader = torch.utils.data.DataLoader(val_datasets, batch_size=batch_size, shuffle=True)
 
-
 # --------------------模型定义---------------------------------
 config = get_config()
 model = build_model(config)
@@ -68,8 +68,8 @@ optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 loss_func = nn.CrossEntropyLoss()
 start_epoch = 0
 
-if os.path.exists(checkPointPath + 'Swin_best_18.pth'):
-    path_checkpoint = checkPointPath + 'Swin_best_18.pth'  # 断点路径
+if os.path.exists(checkPointPath + 'Swin_best_' + str(useEpoch) + '.pth'):
+    path_checkpoint = checkPointPath + 'Swin_best_' + str(useEpoch) + '.pth'  # 断点路径
     checkpoint = torch.load(path_checkpoint)  # 加载断点
     model.load_state_dict(checkpoint['net'])  # 加载模型可学习参数
     optimizer.load_state_dict(checkpoint['optimizer'])  # 加载优化器参数
@@ -154,8 +154,8 @@ if TRAIN:
         np.save(checkPointPath + 'loss', Loss_list)
         np.save(checkPointPath + 'accuracy', Accuracy_list)
 
-    x1 = range(0, 10)
-    x2 = range(0, 10)
+    x1 = range(0, 20)
+    x2 = range(0, 20)
     y1 = Accuracy_list
     y2 = Loss_list
     plt.subplot(2, 1, 1)

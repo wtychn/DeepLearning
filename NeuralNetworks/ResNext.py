@@ -16,9 +16,9 @@ from torchsummary import summary
 
 batch_size = 16
 learning_rate = 0.0002
-Epoch = 20
+Epoch = 100
 useEpoch = 19
-TRAIN = False
+TRAIN = True
 dataPath = '../DBtest/img/'
 checkPointPath = '../DBtest/checkPoint/ResNeXt_checkPoint/'
 
