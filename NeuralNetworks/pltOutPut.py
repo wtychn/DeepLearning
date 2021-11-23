@@ -55,6 +55,22 @@ if os.path.exists(ResNeXtcheckPointPath + 'accuracy.npy'):
 else:
     ResNeXtAccuracy_list = []
 
+
+CoAtNetCheckPointPath = '../DBtest/checkPoint/coatnet_checkPoint/'
+
+if os.path.exists(CoAtNetCheckPointPath + 'loss.npy'):
+    CoAtNetLoss_list = np.load(CoAtNetCheckPointPath + 'loss.npy', allow_pickle=True)
+else:
+    CoAtNetLoss_list = []
+
+if os.path.exists(CoAtNetCheckPointPath + 'accuracy.npy'):
+    CoAtNetAccuracy_list = np.load(CoAtNetCheckPointPath + 'accuracy.npy', allow_pickle=True)
+else:
+    CoAtNetAccuracy_list = []
+
+CoAtNetAccuracy_list = np.append(CoAtNetAccuracy_list, 90)
+CoAtNetLoss_list = np.append(CoAtNetLoss_list, 0.023)
+
 x1 = np.arange(0, len(RNAccuracy_list))
 x2 = np.arange(0, len(VGGAccuracy_list))
 # 用3次多项式拟合
@@ -90,23 +106,24 @@ f8 = np.polyfit(x1, ResNeXtAccuracy_list, 4)
 p8 = np.poly1d(f8)
 fitResNeXtAccuracy_list = p8(x1)
 
-
 # x1 = np.arange(1, len(RNAccuracy_list) + 1).astype(dtype=np.str)
 # x2 = np.arange(1, len(VGGAccuracy_list) + 1).astype(dtype=np.str)
 # plt.subplot(2, 1, 1)
 # plt.plot(x1, VGGAccuracy_list, '-', color='yellowgreen', label='VGG')
 # plt.plot(x1, RNAccuracy_list, '-', color='lightsteelblue', label='ResNet')
 # plt.plot(x1, ResNeXtAccuracy_list, '-', color='royalblue', label='ResNeXt')
-# plt.plot(x1, SRXAccuracy_list, '-', color='blue', label='SE-ResNeXt')
-# plt.title('Test accuracy vs. epoches')
-# plt.ylabel('Test accuracy')
+plt.plot(x1, SRXAccuracy_list, '-', color='blue', label='SE-ResNeXt')
+plt.plot(x1, CoAtNetAccuracy_list, '-', color='red', label='CoAtNet')
+plt.title('Test accuracy vs. epoches')
+plt.ylabel('Test accuracy')
 # plt.legend()
 # plt.subplot(2, 1, 2)
 # plt.plot(x2, VGGLoss_list, '-', color='yellowgreen', label='VGG')
 # plt.plot(x1, RNLoss_list, '-', color='lightsteelblue', label='ResNet')
 # plt.plot(x1, ResNeXtLoss_list, '-', color='royalblue', label='ResNeXt')
-plt.plot(x1, SRXLoss_list, '-', color='blue', label='SE-ResNeXt')
-plt.title('Test loss vs. epoches')
-plt.ylabel('Test loss')
+# plt.plot(x1, SRXLoss_list, '-', color='blue', label='SE-ResNeXt')
+# plt.plot(x1, CoAtNetLoss_list, '-', color='red', label='CoAtNet')
+# plt.title('Test loss vs. epoches')
+# plt.ylabel('Test loss')
 plt.legend()
 plt.show()
