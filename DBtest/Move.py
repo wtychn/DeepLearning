@@ -2,6 +2,8 @@ import os
 import shutil
 import random
 
+from tqdm import tqdm
+
 
 class Move:
     def copy(self, srcDir, tarDir):
@@ -31,3 +33,18 @@ class Move:
         for name in sample:
             shutil.copy(fileDir + name, tarDir + name)
         return
+
+
+for i in range(10):
+    path = os.path.join('D:\\code\\python\\DeepLearning\\DBtest\\img\\train', str(i))
+    filenames = os.listdir(path)
+    pbar = tqdm(total=len(filenames))
+    for filename in filenames:
+        pbar.update(1)
+        if filename.startswith('2018'):
+            continue
+        full_path = os.path.join(path, filename)
+        new_dir = 'D:\\code\\python\\PConv\\dataset\\train\\train'
+        new_file = os.path.join(new_dir, str(i), filename)
+        shutil.copy(full_path, new_file)
+    pbar.close()
