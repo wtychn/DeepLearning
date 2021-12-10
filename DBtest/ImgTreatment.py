@@ -45,7 +45,7 @@ class ImgTreatment:
             screenNum = np.where(index < minlevel, 0, index)
             screenNum = np.where(screenNum > maxlevel, 255, screenNum)
             for i in range(len(screenNum)):
-                if screenNum[i] > 0 and screenNum[i] < 255:
+                if 0 < screenNum[i] < 255:
                     screenNum[i] = (i - minlevel) / (maxlevel - minlevel) * 255
             return screenNum
 
@@ -75,7 +75,7 @@ class ImgTreatment:
         resize = new_image.resize((224, 224), Image.ANTIALIAS)
         return cv2.cvtColor(np.asarray(resize), cv2.COLOR_RGB2BGR)
 
-    def treatment(self, origin_dir, target_dir, isRepair=True, isDehaze=True, isResize=True, isShow=False,
+    def treatment(self, origin_dir, target_dir, isRepair=True, isDehaze=True, isDenoise=False, isResize=True, isShow=False,
                   isSave=False):
         all_path = origin_dir
         target_path = target_dir
@@ -83,21 +83,33 @@ class ImgTreatment:
         repair = img
         m = img
         resize = img
+        dst = img
         # 图像修复
         if isRepair:
-            repair = self.imgRepair(img)
+            img = self.imgRepair(img)
+            repair = img
         # 图像去雾(自动色阶去雾算法)
         if isDehaze:
-            if isRepair:
-                m = self.CreateNewImg(repair)
-            else:
-                m = self.CreateNewImg(img)
+            img = np.uint8(self.CreateNewImg(img))
+            m = img
+        # 图片滤波
+        if isDenoise:
+            # 均值滤波
+            img = cv2.blur(img, (5, 5))
+            # 高斯滤波
+            img = cv2.GaussianBlur(img, (5, 5), 0)
+            # 中值滤波
+            img = cv2.medianBlur(img, 5)
+            # 双边滤波
+            img = cv2.bilateralFilter(img, 9, 75, 75)
+            dst = img
         # 改变图片尺寸
         if isResize:
-            resize = self.resize(m)
+            img = self.resize(img)
+            resize = img
 
         if isSave:
-            cv2.imwrite(target_path, resize)
+            cv2.imwrite(target_path, img)
 
         if isShow:
             plt.subplot(2, 2, 1)
@@ -136,19 +148,21 @@ class ImgTreatment:
         # cv2.imshow("newImage", m)
         # cv2.waitKey(0)
 
-src_path = 'D:\\Data\\OneDrive - csu.edu.cn\\study\\img\\part1'
-tar_path = 'E:\\data'
-for i in range(1, 23):
-    img_path = os.path.join(src_path, str(i))
-    filenames = os.listdir(img_path)
-    new_dir = os.path.join(tar_path, str(i))
-    if not os.path.exists(new_dir):
-        os.makedirs(new_dir)
-    pbar = tqdm(total=len(filenames))
-    for filename in filenames:
-        origin_path = os.path.join(img_path, filename)
-        target_path = os.path.join(new_dir, filename)
-        img_treatment = ImgTreatment()
-        img_treatment.treatment(origin_path, target_path, isRepair=False, isDehaze=False, isSave=True)
-        pbar.update(1)
-    pbar.close()
+# src_path = 'D:\\Data\\OneDrive - csu.edu.cn\\study\\img\\part1'
+# tar_path = 'E:\\data'
+# for i in range(1, 23):
+#     img_path = os.path.join(src_path, str(i))
+#     filenames = os.listdir(img_path)
+#     new_dir = os.path.join(tar_path, str(i))
+#     if not os.path.exists(new_dir):
+#         os.makedirs(new_dir)
+#     pbar = tqdm(total=len(filenames))
+#     for filename in filenames:
+#         origin_path = os.path.join(img_path, filename)
+#         target_path = os.path.join(new_dir, filename)
+#         img_treatment = ImgTreatment()
+#         img_treatment.treatment(origin_path, target_path, isRepair=False, isDehaze=False, isSave=True)
+#         pbar.update(1)
+#     pbar.close()
+
+

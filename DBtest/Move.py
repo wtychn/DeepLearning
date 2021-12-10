@@ -3,6 +3,7 @@ import shutil
 import random
 
 from tqdm import tqdm
+from ImgTreatment import ImgTreatment
 
 
 class Move:
@@ -32,19 +33,19 @@ class Move:
         print(sample)
         for name in sample:
             shutil.copy(fileDir + name, tarDir + name)
-        return
 
 
-for i in range(10):
-    path = os.path.join('D:\\code\\python\\DeepLearning\\DBtest\\img\\train', str(i))
-    filenames = os.listdir(path)
+count = 0
+page = 0
+for page in range(10):
+    src_path = os.path.join('E:/new_imgs/train', str(page))
+    filenames = random.sample(os.listdir(src_path), 100)
     pbar = tqdm(total=len(filenames))
     for filename in filenames:
         pbar.update(1)
-        if filename.startswith('2018'):
-            continue
-        full_path = os.path.join(path, filename)
-        new_dir = 'D:\\code\\python\\PConv\\dataset\\train\\train'
-        new_file = os.path.join(new_dir, str(i), filename)
-        shutil.copy(full_path, new_file)
+        target_path = os.path.join('E:/new_imgs/val', str(page))
+        if not os.path.exists(target_path):
+            os.makedirs(target_path)
+        full_path = os.path.join(src_path, filename)
+        shutil.move(full_path, target_path)
     pbar.close()

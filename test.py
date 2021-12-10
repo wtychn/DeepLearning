@@ -1,5 +1,4 @@
-from DBtest.ImgTreatment import ImgTreatment
-from DBtest.Move import Move
+
 
 # it = ImgTreatment()
 # for i in range(10):
@@ -16,6 +15,7 @@ from DBtest.Move import Move
 #     m.cut(srcDir, targetDir, proportion=0.2)
 
 
-k = [2, 3, 4, 5]
-params = [{'params': md.parameters()} for i in range(10)
-          if i in k]
+arr = []
+part = ['111', 1]
+arr.append(part)
+print(arr[0][0])
