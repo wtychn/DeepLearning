@@ -7,6 +7,7 @@ New for ResNeXt:
 import torch.nn as nn
 import math
 from torchsummary import summary
+from torchstat import stat
 
 __all__ = ['SE_ResNeXt', 'se_resnext_50', 'se_resnext_101', 'se_resnext_152']
 
@@ -153,5 +154,6 @@ def se_resnext_152(**kwargs):
     return model
 
 
-model = se_resnext_50()
-summary(model, (3, 224, 224))
+# model = se_resnext_50()
+# # summary(model, (3, 224, 224))
+# stat(model, (3, 224, 224))
