@@ -1,19 +1,21 @@
 import torch.nn as nn
 import torch.nn.functional as F
+from torchvision import models
+from torchsummary import summary
+
 
 class Block(nn.Module):
-    '''
+    """
         Grouped convolution block(c).
-
-    '''
+    """
     expansion = 2
 
     def __init__(self, in_planes, cardinality=32, bottleneck_width=4, stride=1):
-        '''
+        """
             in_planes: channel size of input
             cardinality: number of groups
             bottleneck_width: channel size of each group
-        '''
+        """
         super(Block, self).__init__()
         group_width = cardinality * bottleneck_width
         self.conv1 = nn.Conv2d(in_planes, group_width, kernel_size=1, bias=False)
@@ -43,11 +45,11 @@ class Block(nn.Module):
 
 class ResNeXt(nn.Module):
     def __init__(self, num_blocks, cardinality, bottleneck_width, num_classes=10):
-        '''
+        """
             num_blocks: list type, channel size of input
             cardinality: number of groups
             bottleneck_width: channel size of each group
-        '''
+        """
         super(ResNeXt, self).__init__()
         self.cardinality = cardinality
         self.bottleneck_width = bottleneck_width
@@ -83,3 +85,29 @@ class ResNeXt(nn.Module):
         out = out.view(out.size(0), -1)
         out = self.linear(out)
         return out
+
+
+class ResNet(nn.Module):
+    def __init__(self, num_classes=10):
+        super(ResNet, self).__init__()
+        net = models.resnet50(pretrained=True)
+        channel_in = net.fc.in_features
+        net.fc = nn.Sequential()
+        self.features = net
+        self.classifier = nn.Sequential(
+            nn.Linear(channel_in, 256),
+            nn.ReLU(),
+            nn.Dropout(0.4),
+            nn.Linear(256, num_classes),
+            nn.LogSoftmax(dim=1)
+        )
+
+    def forward(self, x):
+        x = self.features(x)
+        x = x.view(x.size(0), -1)
+        x = self.classifier(x)
+        return x
+
+
+model = ResNet()
+summary(model, (3, 224, 224))

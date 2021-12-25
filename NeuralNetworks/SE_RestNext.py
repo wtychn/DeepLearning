@@ -6,6 +6,7 @@ New for ResNeXt:
 
 import torch.nn as nn
 import math
+from torchsummary import summary
 
 __all__ = ['SE_ResNeXt', 'se_resnext_50', 'se_resnext_101', 'se_resnext_152']
 
@@ -15,12 +16,12 @@ class Bottleneck(nn.Module):
 
     def __init__(self, inplanes, planes, stride=1, downsample=None, num_group=32):
         super(Bottleneck, self).__init__()
-        self.conv1 = nn.Conv2d(inplanes, planes*2, kernel_size=1, bias=False)
-        self.bn1 = nn.BatchNorm2d(planes*2)
-        self.conv2 = nn.Conv2d(planes*2, planes*2, kernel_size=3, stride=stride,
+        self.conv1 = nn.Conv2d(inplanes, planes * 2, kernel_size=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(planes * 2)
+        self.conv2 = nn.Conv2d(planes * 2, planes * 2, kernel_size=3, stride=stride,
                                padding=1, bias=False, groups=num_group)
-        self.bn2 = nn.BatchNorm2d(planes*2)
-        self.conv3 = nn.Conv2d(planes*2, planes * 4, kernel_size=1, bias=False)
+        self.bn2 = nn.BatchNorm2d(planes * 2)
+        self.conv3 = nn.Conv2d(planes * 2, planes * 4, kernel_size=1, bias=False)
         self.bn3 = nn.BatchNorm2d(planes * 4)
         self.relu = nn.ReLU(inplace=True)
         self.downsample = downsample
@@ -73,7 +74,7 @@ class Bottleneck(nn.Module):
 
 class SE_ResNeXt(nn.Module):
 
-    def __init__(self, block, layers, num_classes=1000, num_group=32):
+    def __init__(self, block, layers, num_classes=10, num_group=32):
         self.inplanes = 64
         super(SE_ResNeXt, self).__init__()
         self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3,
@@ -130,6 +131,7 @@ class SE_ResNeXt(nn.Module):
 
         return x
 
+
 def se_resnext_50(**kwargs):
     """Constructs a ResNeXt-50 model.
     """
@@ -149,3 +151,7 @@ def se_resnext_152(**kwargs):
     """
     model = SE_ResNeXt(Bottleneck, [3, 8, 36, 3], **kwargs)
     return model
+
+
+model = se_resnext_50()
+summary(model, (3, 224, 224))
