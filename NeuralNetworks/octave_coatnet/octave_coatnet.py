@@ -4,8 +4,6 @@ import torch.nn as nn
 from einops import rearrange
 from einops.layers.torch import Rearrange
 
-from functools import reduce
-
 
 def conv_3x3_bn(inp, oup, image_size, downsample=False):
     stride = 1 if downsample == False else 2
@@ -44,56 +42,6 @@ class SE(nn.Module):
         return x * y
 
 
-class SKConv(nn.Module):
-    def __init__(self, in_channels, out_channels, stride=1, M=2, r=16, L=32):
-        '''
-        :param in_channels:  输入通道维度
-        :param out_channels: 输出通道维度   原论文中 输入输出通道维度相同
-        :param stride:  步长，默认为1
-        :param M:  分支数
-        :param r: 特征Z的长度，计算其维度d 时所需的比率（论文中 特征S->Z 是降维，故需要规定 降维的下界）
-        :param L:  论文中规定特征Z的下界，默认为32
-        '''
-        super(SKConv, self).__init__()
-        d = max(in_channels // r, L)  # 计算向量Z 的长度d
-        self.M = M
-        self.out_channels = out_channels
-        self.conv = nn.ModuleList()  # 根据分支数量 添加 不同核的卷积操作
-        for i in range(M):
-            # 为提高效率，原论文中 扩张卷积5x5为 （3X3，dilation=2）来代替。 且论文中建议组卷积G=32
-            self.conv.append(nn.Sequential(
-                nn.Conv2d(in_channels, out_channels, 3, stride, padding=1 + i, dilation=1 + i, groups=32, bias=False),
-                nn.BatchNorm2d(out_channels),
-                nn.ReLU(inplace=True)))
-        self.global_pool = nn.AdaptiveAvgPool2d(1)  # 自适应pool到指定维度    这里指定为1，实现 GAP
-        self.fc1 = nn.Sequential(nn.Conv2d(out_channels, d, 1, bias=False),
-                                 nn.BatchNorm2d(d),
-                                 nn.ReLU(inplace=True))  # 降维
-        self.fc2 = nn.Conv2d(d, out_channels * M, 1, 1, bias=False)  # 升维
-        self.softmax = nn.Softmax(dim=1)  # 指定dim=1  使得两个全连接层对应位置进行softmax,保证 对应位置a+b+..=1
-
-    def forward(self, input):
-        batch_size = input.size(0)
-        output = []
-        # the part of split
-        for i, conv in enumerate(self.conv):
-            # print(i,conv(input).size())
-            output.append(conv(input))
-        # the part of fusion
-        U = reduce(lambda x, y: x + y, output)  # 逐元素相加生成 混合特征U
-        s = self.global_pool(U)
-        z = self.fc1(s)  # S->Z降维
-        a_b = self.fc2(z)  # Z->a，b 升维  论文使用conv 1x1表示全连接。结果中前一半通道值为a,后一半为b
-        a_b = a_b.reshape(batch_size, self.M, self.out_channels, -1)  # 调整形状，变为 两个全连接层的值
-        a_b = self.softmax(a_b)  # 使得两个全连接层对应位置进行softmax
-        # the part of selection
-        a_b = list(a_b.chunk(self.M, dim=1))  # split to a and b   chunk为pytorch方法，将tensor按照指定维度切分成 几个tensor块
-        a_b = list(map(lambda x: x.reshape(batch_size, self.out_channels, 1, 1), a_b))  # 将所有分块  调整形状，即扩展两维
-        V = list(map(lambda x, y: x * y, output, a_b))  # 权重与对应  不同卷积核输出的U 逐元素相乘
-        V = reduce(lambda x, y: x + y, V)  # 两个加权后的特征 逐元素相加
-        return V
-
-
 class FeedForward(nn.Module):
     def __init__(self, dim, hidden_dim, dropout=0.):
         super().__init__()
@@ -110,11 +58,12 @@ class FeedForward(nn.Module):
 
 
 class MBConv(nn.Module):
-    def __init__(self, inp, oup, image_size, downsample=False, expansion=4):
+    def __init__(self, inp, oup, padding, downsample=False, expansion=1):
         super().__init__()
         self.downsample = downsample
         stride = 1 if self.downsample == False else 2
         hidden_dim = int(inp * expansion)
+        padding = get_valid_padding(3, dilation)
 
         if self.downsample:
             self.pool = nn.MaxPool2d(3, 2, 1)
@@ -124,7 +73,7 @@ class MBConv(nn.Module):
             self.conv = nn.Sequential(
                 # dw
                 nn.Conv2d(hidden_dim, hidden_dim, 3, stride,
-                          1, groups=hidden_dim, bias=False),
+                          padding=padding, groups=hidden_dim, bias=False),
                 nn.BatchNorm2d(hidden_dim),
                 nn.GELU(),
                 # pw-linear
@@ -143,8 +92,7 @@ class MBConv(nn.Module):
                           groups=hidden_dim, bias=False),
                 nn.BatchNorm2d(hidden_dim),
                 nn.GELU(),
-                # SE(inp, hidden_dim),
-                SKConv(inp, hidden_dim),
+                SE(inp, hidden_dim),
                 # pw-linear
                 nn.Conv2d(hidden_dim, oup, 1, 1, 0, bias=False),
                 nn.BatchNorm2d(oup),
@@ -156,9 +104,193 @@ class MBConv(nn.Module):
         if self.downsample:
             return self.proj(self.pool(x)) + self.conv(x)
         else:
-            return x + self.conv(x)
+            return self.conv(x)
 
 
+####################
+# Block for OctConv
+####################
+def get_valid_padding(kernel_size, dilation):
+    return (kernel_size + (kernel_size - 1) * (dilation - 1) + 1) / 2
+
+
+class OctaveConv(nn.Module):
+    def __init__(self, in_nc, out_nc, kernel_size, alpha=0.5, stride=1, dilation=1, groups=1,
+                 bias=True, pad_type='zero', norm_type=None, act_type='prelu', mode='CNA'):
+        super(OctaveConv, self).__init__()
+        assert mode in ['CNA', 'NAC', 'CNAC'], 'Wong conv mode [{:s}]'.format(mode)
+        padding = get_valid_padding(kernel_size, dilation) if pad_type == 'zero' else 0
+        self.h2g_pool = nn.AvgPool2d(kernel_size=(2, 2), stride=2)
+        self.upsample = nn.Upsample(scale_factor=2, mode='nearest')
+        self.stride = stride
+
+        self.l2l = MBConv(int(alpha * in_nc), int(alpha * out_nc))
+        self.l2h = MBConv(int(alpha * in_nc), out_nc - int(alpha * out_nc))
+        self.h2l = MBConv(in_nc - int(alpha * in_nc), int(alpha * out_nc))
+        self.h2h = MBConv(in_nc - int(alpha * in_nc), out_nc - int(alpha * out_nc))
+        self.a = nn.PReLU() if act_type else None
+        self.n_h = nn.BatchNorm2d(int(out_nc * (1 - alpha))) if norm_type else None
+        self.n_l = nn.BatchNorm2d(int(out_nc * alpha)) if norm_type else None
+
+    def forward(self, x):
+        X_h, X_l = x
+
+        if self.stride == 2:
+            X_h, X_l = self.h2g_pool(X_h), self.h2g_pool(X_l)
+
+        X_h2h = self.h2h(X_h)
+        X_l2h = self.upsample(self.l2h(X_l))
+        X_l2l = self.l2l(X_l)
+        X_h2l = self.h2l(self.h2g_pool(X_h))
+
+        # print(X_l2h.shape,"~~~~",X_h2h.shape)
+        X_h = X_l2h + X_h2h
+        X_l = X_h2l + X_l2l
+
+        if self.n_h and self.n_l:
+            X_h = self.n_h(X_h)
+            X_l = self.n_l(X_l)
+
+        if self.a:
+            X_h = self.a(X_h)
+            X_l = self.a(X_l)
+
+        return X_h, X_l
+
+
+class FirstOctaveConv(nn.Module):
+    def __init__(self, in_nc, out_nc, kernel_size, alpha=0.5, stride=1, dilation=1, groups=1,
+                 bias=True, pad_type='zero', norm_type=None, act_type='prelu', mode='CNA'):
+        super(FirstOctaveConv, self).__init__()
+        assert mode in ['CNA', 'NAC', 'CNAC'], 'Wong conv mode [{:s}]'.format(mode)
+        padding = get_valid_padding(kernel_size, dilation) if pad_type == 'zero' else 0
+        self.h2g_pool = nn.AvgPool2d(kernel_size=(2, 2), stride=2)
+        self.stride = stride
+        self.h2l = MBConv(in_nc, int(alpha * out_nc), padding)
+        self.h2h = MBConv(in_nc, out_nc - int(alpha * out_nc), padding)
+        self.a = nn.PReLU() if act_type else None
+        self.n_h = nn.BatchNorm2d(int(out_nc * (1 - alpha))) if norm_type else None
+        self.n_l = nn.BatchNorm2d(int(out_nc * alpha)) if norm_type else None
+
+    def forward(self, x):
+        if self.stride == 2:
+            x = self.h2g_pool(x)
+
+        X_h = self.h2h(x)
+        X_l = self.h2l(self.h2g_pool(x))
+
+        if self.n_h and self.n_l:
+            X_h = self.n_h(X_h)
+            X_l = self.n_l(X_l)
+
+        if self.a:
+            X_h = self.a(X_h)
+            X_l = self.a(X_l)
+
+        return X_h, X_l
+
+
+class LastOctaveConv(nn.Module):
+    def __init__(self, in_nc, out_nc, kernel_size, alpha=0.5, stride=1, dilation=1, groups=1,
+                 bias=True, pad_type='zero', norm_type=None, act_type='prelu', mode='CNA'):
+        super(LastOctaveConv, self).__init__()
+        assert mode in ['CNA', 'NAC', 'CNAC'], 'Wong conv mode [{:s}]'.format(mode)
+        padding = get_valid_padding(kernel_size, dilation) if pad_type == 'zero' else 0
+        self.h2g_pool = nn.AvgPool2d(kernel_size=(2, 2), stride=2)
+        self.upsample = nn.Upsample(scale_factor=2, mode='nearest')
+        self.stride = stride
+
+        self.l2h = nn.Conv2d(int(alpha * in_nc), out_nc,
+                             kernel_size, 1, padding, dilation, groups, bias)
+        self.h2h = nn.Conv2d(in_nc - int(alpha * in_nc), out_nc,
+                             kernel_size, 1, padding, dilation, groups, bias)
+
+        self.a = nn.PReLU() if act_type else None
+        self.n_h = nn.BatchNorm2d(out_nc) if norm_type else None
+
+    def forward(self, x):
+        X_h, X_l = x
+
+        if self.stride == 2:
+            X_h, X_l = self.h2g_pool(X_h), self.h2g_pool(X_l)
+
+        X_h2h = self.h2h(X_h)
+        X_l2h = self.upsample(self.l2h(X_l))
+
+        X_h = X_h2h + X_l2h
+
+        if self.n_h:
+            X_h = self.n_h(X_h)
+
+        if self.a:
+            X_h = self.a(X_h)
+
+        return X_h
+
+
+class OctaveResBlock(nn.Module):
+    '''
+    ResNet Block, 3-3 style
+    with extra residual scaling used in EDSR
+    (Enhanced Deep Residual Networks for Single Image Super-Resolution, CVPRW 17)
+    '''
+
+    def __init__(self, in_nc, mid_nc, out_nc, kernel_size=3, alpha=0.5, stride=1, dilation=1, groups=1,
+                 bias=True, pad_type='zero', norm_type=None, act_type='prelu', mode='CNA', res_scale=1):
+        super(OctaveResBlock, self).__init__()
+        conv0 = OctaveConv(in_nc, mid_nc, kernel_size, alpha, stride, dilation, groups, bias, pad_type,
+                           norm_type, act_type, mode)
+        if mode == 'CNA':
+            act_type = None
+        if mode == 'CNAC':  # Residual path: |-CNAC-|
+            act_type = None
+            norm_type = None
+        conv1 = OctaveConv(mid_nc, out_nc, kernel_size, alpha, stride, dilation, groups, bias, pad_type,
+                           norm_type, act_type, mode)
+
+        self.res = nn.Sequential(conv0, conv1)
+        self.res_scale = res_scale
+
+    def forward(self, x):
+        # if(len(x)>2):
+        # print(x[0].shape,"  ",x[1].shape,"  ",x[2].shape,"  ",x[3].shape)
+        # print(len(x))
+        res = self.res(x)
+        res = (res[0].mul(self.res_scale), res[1].mul(self.res_scale))
+        x = (x[0] + res[0], x[1] + res[1])
+        # print(len(x),"~~~",len(res),"~~~",len(x + res))
+
+        return x[0] + res[0], x[1] + res[1]
+
+
+##############################################################################################
+# Ocatve SRResNet
+class Octave_SRResNet(nn.Module):
+    def __init__(self, in_nc, out_nc, nf, nb, upscale=4, norm_type='batch', act_type='relu',
+                 mode='NAC', res_scale=1, upsample_mode='upconv'):
+        super(Octave_SRResNet, self).__init__()
+
+        fea_conv = FirstOctaveConv(in_nc, nf, kernel_size=3, alpha=0.5, stride=1, dilation=1, groups=1,
+                                   bias=True, pad_type='zero', norm_type=None, act_type='prelu', mode='CNA')
+        # first=B.FirstOctaveConv(nf, nf, kernel_size=3, norm_type=norm_type, act_type=None, mode=mode)
+        resnet_blocks = [OctaveResBlock(nf, nf, nf, norm_type=norm_type, act_type=act_type,
+                                        mode=mode, res_scale=res_scale) for _ in range(nb)]
+        # last=B.LastOctaveConv(nf, nf, kernel_size=3, norm_type=norm_type, act_type=None, mode=mode)
+        LR_conv = LastOctaveConv(nf, nf, kernel_size=3, alpha=0.5, stride=1, dilation=1, groups=1,
+                                 bias=True, pad_type='zero', norm_type=None, act_type='prelu', mode='CNA')
+
+        self.model = nn.Sequential(fea_conv, *resnet_blocks, LR_conv)
+
+    def forward(self, x):
+        x = self.model(x)
+        return x
+
+
+#####################################################################################################
+
+####################
+# Block for Transformer
+####################
 class Attention(nn.Module):
     def __init__(self, inp, oup, image_size, heads=8, dim_head=32, dropout=0.):
         super().__init__()
