@@ -148,8 +148,8 @@ class ImgTreatment:
         # cv2.imshow("newImage", m)
         # cv2.waitKey(0)
 
-# src_path = 'D:\\Data\\OneDrive - csu.edu.cn\\study\\img\\part1'
-# tar_path = 'E:\\data'
+src_path = 'E:/BaiduNetdiskWorkspace'
+tar_path = 'E:\\data'
 # for i in range(1, 23):
 #     img_path = os.path.join(src_path, str(i))
 #     filenames = os.listdir(img_path)
@@ -165,4 +165,7 @@ class ImgTreatment:
 #         pbar.update(1)
 #     pbar.close()
 
-
+img_treatment = ImgTreatment()
+origin_path = os.path.join(src_path, 'iron_water_dehaze.jpg')
+target_path = os.path.join(src_path, 'iron_water_resize.jpg')
+img_treatment.treatment(origin_path, target_path, isRepair=False, isDehaze=False, isDenoise=False, isResize=True, isShow=False, isSave=True)

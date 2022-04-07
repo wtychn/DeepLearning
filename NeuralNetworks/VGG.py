@@ -49,3 +49,4 @@ class VGG(nn.Module):
         out = self.bn2(out)
         out = F.relu(out)
         return F.softmax(self.fc3(out))
+

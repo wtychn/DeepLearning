@@ -12,15 +12,17 @@ from torchvision import datasets, transforms
 from tqdm import tqdm
 from torchsummary import summary
 
-from coatnet import coatnet_0
+import coatnet
+import skcoatnet
 
 batch_size = 16
 learning_rate = 0.0001
 Epoch = 100
 useEpoch = 83
-TRAIN = True
-dataPath = 'E:/new_imgs'
-checkPointPath = 'E:/check_point/new_coatnet'
+TRAIN = False
+dataPath = 'D:/code/python/DeepLearning/DBtest/img'
+# checkPointPath = 'E:/check_point/SKCoatnet2_checkPoint'
+checkPointPath = '../../DBtest/checkPoint/coatnet_checkPoint/'
 
 train_transforms = transforms.Compose([
     # transforms.RandomResizedCrop(224),
@@ -60,11 +62,11 @@ val_datasets = datasets.ImageFolder(val_dir, transform=val_transforms)
 val_dataloader = torch.utils.data.DataLoader(val_datasets, batch_size=batch_size, shuffle=True)
 
 # --------------------模型定义---------------------------------
-model = coatnet_0()
+model = coatnet.coatnet_0()
 if torch.cuda.is_available():
     model.cuda()
     print('Using GPU')
-# summary(model, (3, 224, 224))
+summary(model, (3, 224, 224))
 
 # --------------------训练过程---------------------------------
 

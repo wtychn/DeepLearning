@@ -17,7 +17,7 @@ def check_image_file(filename):
     # ------------------------------------------------------
     # https://www.runoob.com/python/python-func-any.html
     # https://www.runoob.com/python/att-string-endswith.html
-    # ------------------------------------------------------
+    # ---------------------------------------------------
     return any([filename.endswith(extention) for extention in
                 ['.png', '.PNG', '.jpg', '.JPG', '.jpeg', '.JPEG', '.bmp', '.BMP']])
 

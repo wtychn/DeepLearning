@@ -14,7 +14,9 @@ from tqdm import tqdm
 from torchsummary import summary
 from dataset import TestImageDataset
 
-from coatnet import coatnet_0
+import coatnet
+import skcoatnet
+
 from DBtest.predicted import Predict
 import os
 
@@ -23,18 +25,20 @@ os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 batch_size = 16
 learning_rate = 0.0001
 Epoch = 100
-useEpoch = 83
+useEpoch = 99
 TRAIN = False
 dataPath = 'E:\\data'
-checkPointPath = '../../DBtest/checkPoint/coatnet_checkPoint/'
+# checkPointPath = '../../DBtest/checkPoint/coatnet_checkPoint/'
+checkPointPath = 'E:/check_point/SKCoatnet2_checkPoint/'
 
-test_dirs = [3, 6, 8, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 21]
+# test_dirs = [3, 6, 8, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 21]
+test_dirs = [19]
 for num in test_dirs:
     test_dir = os.path.join(dataPath, str(num))
     test_datasets = TestImageDataset(test_dir, (224, 224), (224, 224))
     test_dataloader = torch.utils.data.DataLoader(test_datasets, batch_size=batch_size, shuffle=False)
     # --------------------模型定义---------------------------------
-    model = coatnet_0()
+    model = skcoatnet.coatnet_0()
     if torch.cuda.is_available():
         model.cuda()
         print('Using GPU')
@@ -104,17 +108,27 @@ for num in test_dirs:
         slopes.append((rests[i] - rests[i - 1]))
 
     # ------------------------绘图---------------------------------
-    # plt.plot(np.arange(0, len(classes)), classes, '-', color='red')
-    # plt.title('Test classes vs. images')
-    # plt.ylabel('Test classes')
-    # plt.show()
+    plt.plot(np.arange(0, len(classes)), classes, '-', color='red')
+    plt.title('Test classes vs. images')
+    plt.ylabel('Test classes')
+    save_path = os.path.join('E:/check_point/predict/skclasses', str(num) + '_' + str(nprests_mean) + '_' + '.jpg')
+    # plt.savefig(save_path)
+    plt.show()
 
-    plt.plot(np.arange(0, len(rests)), rests, '-', color='green', label='predict')
-    plt.plot(np.arange(0, len(rests)), rest_times, '-', color='blue', label='true')
-    plt.title('Test rest time vs. images')
-    plt.ylabel('Test rest time')
+    vgg_rests = np.load(os.path.join('E:\\check_point\\predict\\results', 'vgg.npy'), allow_pickle=True)
+    resnet_rests = np.load(os.path.join('E:\\check_point\\predict\\results', 'resnet.npy'), allow_pickle=True)
+    resnext_rests = np.load(os.path.join('E:\\check_point\\predict\\results', 'resnext.npy'), allow_pickle=True)
+    coatnet_rests = np.load(os.path.join('E:\\check_point\\predict\\results', 'coatnet.npy'), allow_pickle=True)
+    plt.plot(np.arange(0, len(resnet_rests)), resnet_rests, '-', color='lightsteelblue', label='VGG')
+    plt.plot(np.arange(0, len(vgg_rests)), vgg_rests, '-', color='yellowgreen', label='ResNet')
+    plt.plot(np.arange(0, len(resnext_rests)), resnext_rests, '-', color='green', label='ResNeXt')
+    plt.plot(np.arange(0, len(coatnet_rests)), coatnet_rests, '-', color='orange', label='CoAtNet')
+    plt.plot(np.arange(0, len(rests)), rests, '-', color='red', label='SK-CoAtNet')
+    plt.plot(np.arange(0, len(rests)), rest_times, '-', color='blue', label='True')
+    plt.title('Rest Time vs. Image Index')
+    plt.ylabel('Rest Time')
     plt.legend()
-    save_path = os.path.join('E:/check_point/predict/new31', str(num) + '_' + str(nprests_mean) + '_' + '.jpg')
+    save_path = os.path.join('E:/check_point/predict/newsk', str(num) + '_' + str(nprests_mean) + '_' + '.jpg')
     plt.savefig(save_path)
     plt.show()
 

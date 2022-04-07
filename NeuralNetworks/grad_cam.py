@@ -5,9 +5,14 @@ from PIL import Image
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torchvision import models
 import torchvision.transforms as transforms
 
-from coatnet import coatnet_0
+# from coatnet import coatnet_0
+from VGG import VGG
+from ResNet import ResNet
+from resnext_model import resnext_50
+from coatnet.skcoatnet import coatnet_0
 
 
 def img_transform(img_in, transform):
@@ -54,8 +59,8 @@ def show_cam_on_image(img, mask, out_dir, i):
     cam = heatmap + np.float32(img)
     cam = cam / np.max(cam)
 
-    path_cam_img = os.path.join(out_dir, "cam" + str(1) + str(i) + ".jpg")
-    path_raw_img = os.path.join(out_dir, "raw" + str(1) + str(i) + ".jpg")
+    path_cam_img = os.path.join(out_dir, "cam" + str(i) + ".jpg")
+    path_raw_img = os.path.join(out_dir, "raw" + str(i) + ".jpg")
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
     cv2.imwrite(path_cam_img, np.uint8(255 * cam))
@@ -107,22 +112,24 @@ def gen_cam(feature_map, grads):
 if __name__ == '__main__':
 
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-    path_net = os.path.join(BASE_DIR, "..", "DBtest", "checkPoint", "coatnet_checkPoint", "coatnet_best_83.pth")
-    path_img = os.path.join(BASE_DIR, "..", "DBtest", "img", "test", "1")
-    output_dir = os.path.join(BASE_DIR, "..", "DBtest", "grad_cam", "coatnet")
+    # path_net = os.path.join(BASE_DIR, "..", "DBtest", "checkPoint", "ResNeXt_checkPoint", "ResNeXt_best_99.pth")
+    path_net = os.path.join("E:/check_point/SKCoatnet2_checkPoint", "coatnet_best_59.pth")
+    path_img = os.path.join(BASE_DIR, "..", "DBtest", "grad_cam", "src")
+    output_dir = os.path.join(BASE_DIR, "..", "DBtest", "grad_cam", "swin_transformer")
 
     classes = ('0', '1', '2', '3', '4', '5', '6', '7', '8', '9')
     fmap_block = list()
     grad_block = list()
 
+    files = os.listdir(path_img)
+
     net = coatnet_0()
     checkpoint = torch.load(path_net)  # 加载断点
     net.load_state_dict(checkpoint['net'])  # 加载模型可学习参数
+    net.eval()
 
-    files = os.listdir(path_img)
-
-    i = 9
     # 图片读取；网络加载
+    i = 10
     img = cv2.imread(os.path.join(path_img, files[i]), 1)  # H*W*C
     img_input = img_preprocess(img)
 
@@ -139,8 +146,6 @@ if __name__ == '__main__':
     net.zero_grad()
     class_loss = comp_class_vec(output)
     class_loss.backward()
-    h1.remove()
-    h2.remove()
 
     # 生成cam
     grads_val = grad_block[0].cpu().data.numpy().squeeze()

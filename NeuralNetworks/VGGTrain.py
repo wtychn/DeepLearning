@@ -15,9 +15,12 @@ from torchsummary import summary
 
 from NeuralNetworks.VGG import VGG
 
+import os
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+
 batch_size = 16
 learning_rate = 0.0002
-lastEpoch = 149
+lastEpoch = 148
 Epoch = 150
 TRAIN = True
 dataPath = '../DBtest/img/'
@@ -74,7 +77,7 @@ model = VGG_16()
 if torch.cuda.is_available():
     model.cuda()
     print('Using GPU')
-summary(model, (3, 224, 224))
+# summary(model, (3, 224, 224))
 
 
 # params = [{'params': md.parameters()} for md in model.children()
@@ -172,17 +175,17 @@ for epoch in range(start_epoch, Epoch):
     np.save(checkPointPath + 'loss', Loss_list)
     np.save(checkPointPath + 'accuracy', Accuracy_list)
 # 画图
-x1 = range(0, 10)
-x2 = range(0, 10)
-y1 = Accuracy_list
-y2 = Loss_list
-plt.subplot(2, 1, 1)
-plt.plot(x1, y1, 'o-')
-plt.title('Test accuracy vs. epoches')
-plt.ylabel('Test accuracy')
-plt.subplot(2, 1, 2)
-plt.plot(x2, y2, '.-')
-plt.xlabel('Test loss vs. epoches')
-plt.ylabel('Test loss')
-plt.show()
-# plt.savefig("accuracy_loss.jpg")
+# x1 = range(0, 10)
+# x2 = range(0, 10)
+# y1 = Accuracy_list
+# y2 = Loss_list
+# plt.subplot(2, 1, 1)
+# plt.plot(x1, y1, 'o-')
+# plt.title('Test accuracy vs. epoches')
+# plt.ylabel('Test accuracy')
+# plt.subplot(2, 1, 2)
+# plt.plot(x2, y2, '.-')
+# plt.xlabel('Test loss vs. epoches')
+# plt.ylabel('Test loss')
+# plt.show()
+# # plt.savefig("accuracy_loss.jpg")
