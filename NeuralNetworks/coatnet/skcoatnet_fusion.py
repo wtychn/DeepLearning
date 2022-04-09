@@ -139,16 +139,22 @@ class ConvPart(nn.Module):
         self.s0 = self._make_layer(
             conv_3x3_bn, in_channels, channels[0], num_blocks[0], (ih // 2, iw // 2))  # 112 * 112 * 64
         self.s1 = self._make_layer(
-            MBConv, channels[0], channels[1], num_blocks[1], (ih // 4, iw // 4))  # 56 * 56 * 96
+            MBConv, channels[0], channels[1], num_blocks[1], (ih // 4, iw // 4))  # 56 * 56 * 128
         self.s2 = self._make_layer(
-            MBConv, channels[1], channels[2], num_blocks[2], (ih // 8, iw // 8))  # 28 * 28 * 192
+            MBConv, channels[1], channels[2], num_blocks[2], (ih // 8, iw // 8))  # 28 * 28 * 256
+        self.s3 = self._make_layer(
+            MBConv, channels[2], channels[3], num_blocks[3], (ih // 16, iw // 16))  # 14 * 14 * 512
+
+        self.pool = nn.AvgPool2d(8, 1)
 
     def forward(self, x):
         x = self.s0(x)
         x = self.s1(x)
         x = self.s2(x)
+        x = self.s3(x)
+        x = self.pool(x)
 
-        x = x.reshape(len(x), 784, 192)
+        x = x.reshape(len(x), 49, 512)
         return x
 
     def _make_layer(self, block, inp, oup, depth, image_size):
@@ -301,7 +307,7 @@ class SE_ResNeXt(nn.Module):
 
 ##############################################################
 # Transformer Parameters
-d_model = 192  # Embedding Size
+d_model = 512  # Embedding Size
 d_ff = 2048  # FeedForward dimension
 d_k = d_v = 64  # dimension of K(=Q), V
 n_layers = 6  # number of Encoder of Decoder Layer
@@ -541,8 +547,8 @@ class Decoder(nn.Module):
 class Skcoatnets_fusion(nn.Module):
     def __init__(self):
         super(Skcoatnets_fusion, self).__init__()
-        num_blocks = [2, 2, 3]  # L
-        channels = [64, 96, 192]  # D
+        num_blocks = [2, 2, 3, 3]  # L
+        channels = [64, 128, 256, 512]  # D
         self.image_network = ConvPart((224, 224), 3, num_blocks, channels)
         self.encoder = Encoder(1001)
         self.decoder = Decoder(10)
@@ -585,14 +591,13 @@ class Skcoatnets_fusion(nn.Module):
         dec_logits = self.projection(dec_outputs)  # dec_logits: [batch_size, tgt_len, tgt_vocab_size]
         outputs, enc_self_attns, dec_self_attns, dec_enc_attns = dec_logits.view(-1, dec_logits.size(
             -1)), enc_self_attns, dec_self_attns, dec_enc_attns
-        if self.training:
-            loss = self.loss_fun(outputs, dec_inputs.view(-1))
-            return loss
-        else:
-            return outputs
+
+        return outputs
 
 
 if __name__ == "__main__":
-    model = Skcoatnets_fusion()
-    output = model()
+    model = Skcoatnets_fusion().cuda()
+    data = np.array([{"image": np.zeros([3, 224, 224]), "x": np.zeros([35]), "y": np.array([1])},
+                     {"image": np.zeros([3, 224, 224]), "x": np.zeros([35]), "y": np.array([1])}])
+    output = model(data)
     print("output:", output.shape)
