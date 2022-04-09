@@ -11,4 +11,6 @@ dataSources/
 *.npy
 *.csv
 *.jpg
+*.eps
+ImgTreatment.py
 NeuralNetworks/mnist/
