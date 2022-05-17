@@ -4,6 +4,7 @@ import torch
 import torch.nn as nn
 from einops import rearrange
 from einops.layers.torch import Rearrange
+import time
 
 
 def conv_3x3_bn(inp, oup, image_size, downsample=False):
@@ -330,7 +331,11 @@ if __name__ == '__main__':
     img = torch.randn(2, 3, 224, 224)
 
     net = coatnet_0()
+    time_start = time.clock()
     out = net(img)
+    time_end = time.clock()
+    time_sum = time_end - time_start
+    print('time:', time_sum)
     print(out.shape, count_parameters(net))
 
     net = coatnet_1()

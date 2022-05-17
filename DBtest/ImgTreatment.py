@@ -1,5 +1,6 @@
 import os
 import shutil
+import time
 
 import cv2
 import numpy as np
@@ -148,8 +149,8 @@ class ImgTreatment:
         # cv2.imshow("newImage", m)
         # cv2.waitKey(0)
 
-src_path = 'E:/BaiduNetdiskWorkspace'
-tar_path = 'E:\\data'
+src_path = 'D:/code/python/DeepLearning/DBtest/img'
+tar_path = 'D:/code/python/DeepLearning/DBtest/img'
 # for i in range(1, 23):
 #     img_path = os.path.join(src_path, str(i))
 #     filenames = os.listdir(img_path)
@@ -166,6 +167,10 @@ tar_path = 'E:\\data'
 #     pbar.close()
 
 img_treatment = ImgTreatment()
-origin_path = os.path.join(src_path, 'iron_water_dehaze.jpg')
+origin_path = os.path.join(src_path, 'iron_water_1.jpg')
 target_path = os.path.join(src_path, 'iron_water_resize.jpg')
-img_treatment.treatment(origin_path, target_path, isRepair=False, isDehaze=False, isDenoise=False, isResize=True, isShow=False, isSave=True)
+time_start = time.clock()
+img_treatment.treatment(origin_path, target_path, isRepair=False, isDehaze=True, isDenoise=True, isResize=True, isShow=False, isSave=True)
+time_end = time.clock()
+time_sum = time_end - time_start
+print('time_sum:', time_sum)

@@ -1,3 +1,4 @@
+import time
 from functools import reduce
 import math
 
@@ -599,5 +600,9 @@ if __name__ == "__main__":
     model = Skcoatnets_fusion().cuda()
     data = np.array([{"image": np.zeros([3, 224, 224]), "x": np.zeros([35]), "y": np.array([1])},
                      {"image": np.zeros([3, 224, 224]), "x": np.zeros([35]), "y": np.array([1])}])
+    time_start = time.clock()
     output = model(data)
+    time_end = time.clock()
+    time_sum = time_end - time_start
+    print("time:", time_sum)
     print("output:", output.shape)
